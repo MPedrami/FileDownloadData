@@ -9,7 +9,7 @@
 #include <errno.h>
 
 #define PORT 3456
-#define MAX_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 4096
 
 int send_command(int sockfd, const char *command) 
 {
@@ -31,33 +31,15 @@ char *receive_response(int sockfd)
         return NULL;
     }
     memset(response, 0, MAX_BUFFER_SIZE);
-    ssize_t bytes_received;
-    char buffer[1];
-    int i = 0;
-
-    while ((bytes_received = recv(sockfd, buffer, 1, 0)) > 0) {
-        if (buffer[0] == '\n') 
-        {
-            break;
-        }
-        if (i < MAX_BUFFER_SIZE - 1) 
-        {
-            response[i++] = buffer[0];
-        } 
-        else 
-        {
-            fprintf(stderr, "Response too long\n");
-            free(response);
-            return NULL;
-        }
-    }
+    
+    ssize_t bytes_received = recv(sockfd, response, MAX_BUFFER_SIZE - 1, 0);
     if (bytes_received < 0) 
     {
         perror("Error receiving response");
         free(response);
         return NULL;
     }
-    response[i] = '\0';
+    response[bytes_received] = '\0';
     return response;
 }
 
@@ -124,43 +106,21 @@ int main()
             case 1:
                 if (send_command(sockfd, "LIST\n") < 0) 
                 {
-                    close(sockfd);
-                    exit(1);
+                    perror("Failed to send command");
+                    break;
                 }
                 response = receive_response(sockfd);
                 if (response == NULL) 
                 {
-                    close(sockfd);
-                    exit(1);
+                    perror("Failed to receive response");
+                    break;
                 }
-                if (strncmp(response, "+OK", 3) == 0) 
+                printf("Files:\n%s\n", response);
+                if (strstr(response, ".") != NULL) 
                 {
-                    printf("Files:\n");
-                    char *line = NULL;
-                    size_t len = 0;
-                    ssize_t read;
-
-                    // Read file listing line by line
-                    while (1) 
-                    {
-                        line = receive_response(sockfd);
-                        if (line == NULL) 
-                        {
-                            break;
-                        }
-                        if (strcmp(line, ".") == 0) 
-                        {
-                            free(line);
-                            break; // End of listing
-                        }
-                        printf("%s\n", line);
-                        free(line);
-                    }
-                } 
-                else 
-                {
-                    printf("Error: %s\n", response);
+                    printf("End of file list.\n");
                 }
+                
                 free(response);
                 break;
 

@@ -171,14 +171,14 @@ int main()
                 snprintf(command, sizeof(command), "GET %s\n", filename);
                 if (send_command(sockfd, command) < 0)
                 {
-                    close(sockfd);
-                    exit(1);
+                    perror("failed to send command");
+                    break;
                 }
                 response = receive_response(sockfd);
                 if (response == NULL)
                 {
-                    close(sockfd);
-                    exit(1);
+                    perror("Failed to receive response");
+                    break;
                 }
                 if (strncmp(response, "+OK", 3) == 0)
                 {
@@ -191,8 +191,7 @@ int main()
                     {
                         perror("Error opening file for writing");
                         free(response);
-                        close(sockfd);
-                        exit(1);
+                        break;
                     }
                     char buffer[MAX_BUFFER_SIZE];
                     int total_received = 0;
@@ -204,17 +203,14 @@ int main()
                             perror("Error receiving file data");
                             fclose(file);
                             free(response);
-                            close(sockfd);
-                            exit(1);
+                            break;
                         }
                         fwrite(buffer, 1, bytes_received, file);
                         total_received += bytes_received;
                     }
                     fclose(file);
                     printf("File downloaded successfully: %s\n", filename);
-                }
-                else 
-                {
+                }else {
                     printf("Error: %s\n", response);
                 }
                 free(response);

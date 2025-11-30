@@ -164,7 +164,60 @@ int main()
                 break;
 
             case 2:
-                printf("Download functionality not yet implemented.\n");
+                printf("Enter the filename to download: ");
+                char filename[100];
+                scanf("%s", filename);
+                char command[120];
+                snprintf(command, sizeof(command), "GET %s\n", filename);
+                if (send_command(sockfd, command) < 0)
+                {
+                    close(sockfd);
+                    exit(1);
+                }
+                response = receive_response(sockfd);
+                if (response == NULL)
+                {
+                    close(sockfd);
+                    exit(1);
+                }
+                if (strncmp(response, "+OK", 3) == 0)
+                {
+                    int file_size;
+                    sscanf(response + 4, "%d", &file_size);
+                    printf("Downloading %s (%d bytes)...\n", filename, file_size);
+
+                    FILE *file = fopen(filename, "wb");
+                    if (file == NULL)
+                    {
+                        perror("Error opening file for writing");
+                        free(response);
+                        close(sockfd);
+                        exit(1);
+                    }
+                    char buffer[MAX_BUFFER_SIZE];
+                    int total_received = 0;
+                    while (total_received < file_size)
+                    {
+                        ssize_t bytes_received = recv(sockfd, buffer, sizeof(buffer), 0);
+                        if(bytes_received < 0)
+                        {
+                            perror("Error receiving file data");
+                            fclose(file);
+                            free(response);
+                            close(sockfd);
+                            exit(1);
+                        }
+                        fwrite(buffer, 1, bytes_received, file);
+                        total_received += bytes_received;
+                    }
+                    fclose(file);
+                    printf("File downloaded successfully: %s\n", filename);
+                }
+                else 
+                {
+                    printf("Error: %s\n", response);
+                }
+                free(response);
                 break;
 
             case 3:

@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <errno.h>
 
 #define PORT 3456
 #define MAX_BUFFER_SIZE 1024
@@ -167,6 +168,17 @@ int main()
                 printf("Enter the filename to download: ");
                 char filename[100];
                 scanf("%s", filename);
+                if (access(filename, F_OK) == 0)
+                {
+                    char overwrite_choice;
+                    printf("File already exits. Overwrite? (y/n): ");
+                    scanf(" %c", &overwrite_choice);
+                    if (overwrite_choice != 'y')
+                    {
+                        printf("Download cnacelled.\n");
+                        break;
+                    }
+                }
                 char command[120];
                 snprintf(command, sizeof(command), "GET %s\n", filename);
                 if (send_command(sockfd, command) < 0)
@@ -195,6 +207,9 @@ int main()
                     }
                     char buffer[MAX_BUFFER_SIZE];
                     int total_received = 0;
+                    int percentage = 0;
+                    char progress_bar[51];
+                    memset(progress_bar, 0, sizeof(progress_bar));
                     while (total_received < file_size)
                     {
                         ssize_t bytes_received = recv(sockfd, buffer, sizeof(buffer), 0);
@@ -207,10 +222,19 @@ int main()
                         }
                         fwrite(buffer, 1, bytes_received, file);
                         total_received += bytes_received;
+                        percentage = (total_received * 100) / file_size;
+                        int bar_length = (int)((float)percentage / 2.0);
+                        memset(progress_bar, '#', bar_length);
+                        progress_bar[bar_length] = '\0';
+                        printf("\rDownloading %s: [%-50s] %d%%", filename, progress_bar, percentage);
+                        fflush(stdout);
                     }
                     fclose(file);
+                    printf("\rDownloading %s: [%-50s] 100%%\n", filename, progress_bar);
                     printf("File downloaded successfully: %s\n", filename);
-                }else {
+                }
+                else 
+                {
                     printf("Error: %s\n", response);
                 }
                 free(response);
